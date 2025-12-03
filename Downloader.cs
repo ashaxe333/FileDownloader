@@ -10,24 +10,26 @@ namespace FileDownloader
     public class Downloader
     {
         private string? url;
-        private long workerSpace = 10_000_000;
+        private long workerSpace = 10_000;//_000;
         private List<Thread> threads = new List<Thread>();
-        private byte[] data;
+        private volatile byte[] data;
+        private int nameCounter;
 
         public string Url { get => url; set => url = value; }
 
         public Downloader(string url)
         {
             Url = url;
+            nameCounter = 1;
 
             MakeWorkers();
         }
 
         /// <summary>
-        /// method that gets size of file
+        /// method that gets size of file.
         /// </summary>
-        /// <returns> size of file </returns>
-        /// <exception cref="Exception"> Throes exception, if file couldn't be found </exception>
+        /// <returns> size of file. </returns>
+        /// <exception cref="Exception"> Throes exception, if file couldn't be found. </exception>
         public long GetFileSize()
         {
             long size = 0;
@@ -46,7 +48,7 @@ namespace FileDownloader
         }
 
         /// <summary>
-        /// Creates threads for downloading
+        /// Creates threads for downloading.
         /// </summary>
         public void MakeWorkers()
         {
@@ -71,11 +73,17 @@ namespace FileDownloader
                 threads[i].Join();
             }
 
+            SaveFile();
             Console.WriteLine(size);
-            Console.WriteLine(workerCount);
+            Console.WriteLine($"{workerCount} - {threads.Count}");
             Console.WriteLine(workerSpace);
         }
 
+        /// <summary>
+        /// Downloads file paralerly with threads, and store file in array data.
+        /// </summary>
+        /// <param name="start"> starting byte on file, where threads start downloading. Unique for every thread. </param>
+        /// <param name="end"> ending byte on file, where threads end downloading. Unique for every thread. </param>
         public void Download(long start, long end)
         {
             //server pošle jen danný rozsah
@@ -100,7 +108,26 @@ namespace FileDownloader
                     }
                 }
             }
-            
         }
+
+        /// <summary>
+        /// Saves all bytes from array data to file in Downloads folder on computer
+        /// </summary>
+        public void SaveFile()
+        {
+            string fileName = Url.Split('/').Last();
+            if (string.IsNullOrWhiteSpace(fileName)) 
+            { 
+                fileName = "new_file" + nameCounter.ToString();
+                nameCounter++;
+            }
+            
+            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", fileName);
+
+            File.WriteAllBytes(path, data);
+            Console.WriteLine($"Saved to {path}");
+        }
+
     }
+
 }
