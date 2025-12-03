@@ -10,16 +10,21 @@ namespace FileDownloader
     public class Downloader
     {
         private string? url;
-        private long workerSpace = 10_000;//_000;
+        private string? path;
+
+        private long workerSpace = 1_000_000;
         private List<Thread> threads = new List<Thread>();
+
         private volatile byte[] data;
         private int nameCounter;
 
         public string Url { get => url; set => url = value; }
+        public string? Path { get => path; set => path = value; }
 
-        public Downloader(string url)
+        public Downloader(string url, string path)
         {
             Url = url;
+            Path = path;
             nameCounter = 1;
 
             MakeWorkers();
@@ -117,13 +122,22 @@ namespace FileDownloader
         {
             string fileName = Url.Split('/').Last();
             if (string.IsNullOrWhiteSpace(fileName)) 
-            { 
+            {
                 fileName = "new_file" + nameCounter.ToString();
                 nameCounter++;
             }
-            
-            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", fileName);
 
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", fileName); 
+            }
+            else
+            {
+                if (path.ToArray()[path.ToArray().Length-1] == '/') path = path + fileName;
+                else path = path + "/" + fileName;
+                
+            }
+            
             File.WriteAllBytes(path, data);
             Console.WriteLine($"Saved to {path}");
         }
