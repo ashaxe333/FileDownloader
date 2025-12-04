@@ -1,4 +1,4 @@
-FileDownloader
+# FileDownloader
 1) Download .zip and open FileDownloader.exe.
 2) From the strart there will be two options - type "1" for file download or "2" for closing.
 3) For download there will be first prompt for url adress of the image.
