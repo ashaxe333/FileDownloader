@@ -12,11 +12,12 @@ namespace FileDownloader
         private string? url;
         private string? path;
 
-        private long workerSpace = 1_000_000;
+        private long workerSpace = 10_000_000;
         private List<Thread> threads = new List<Thread>();
 
         private volatile byte[] data;
         private int nameCounter;
+        private char[] prohibitedCharacters = new char[9];
 
         public string Url { get => url; set => url = value; }
         public string? Path { get => path; set => path = value; }
@@ -26,6 +27,16 @@ namespace FileDownloader
             Url = url;
             Path = path;
             nameCounter = 1;
+
+            prohibitedCharacters[0] = '<';
+            prohibitedCharacters[1] = '>';
+            prohibitedCharacters[2] = ':';
+            prohibitedCharacters[3] = '\"';
+            prohibitedCharacters[4] = '/';
+            prohibitedCharacters[5] = '\\';
+            prohibitedCharacters[6] = '|';
+            prohibitedCharacters[7] = '?';
+            prohibitedCharacters[8] = '*';
 
             MakeWorkers();
         }
@@ -38,18 +49,29 @@ namespace FileDownloader
         public long GetFileSize()
         {
             long size = 0;
-
-            //vtvoří http požadavek s metodou HEAD
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);
-            request.Method = "HEAD";
-
-            //získá response
-            using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+            try
             {
-                //zkusí získat velikost, a pokud ji dostane, uloží ji a vrátí
-                if (long.TryParse(response.Headers.Get("Content-Length"), out size)) return size;
-                else throw new Exception("file couldn't be found");
+                //vtvoří http požadavek s metodou HEAD
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);
+                request.Method = "HEAD";
+
+                //získá response
+                using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+                {
+                    //zkusí získat velikost, a pokud ji dostane, uloží ji a vrátí
+                    if (long.TryParse(response.Headers.Get("Content-Length"), out size)) return size;
+                    else throw new Exception("file couldn't be found");
+                }
             }
+            catch (WebException ex)
+            {
+                Console.WriteLine("file couldn't be found", ex.Message);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("file couldn't be found", ex.Message);
+            }
+            return size;
         }
 
         /// <summary>
@@ -79,9 +101,9 @@ namespace FileDownloader
             }
 
             SaveFile();
-            Console.WriteLine(size);
-            Console.WriteLine($"{workerCount} - {threads.Count}");
-            Console.WriteLine(workerSpace);
+            //Console.WriteLine(size);
+            //Console.WriteLine($"{workerCount} - {threads.Count}");
+            //Console.WriteLine(workerSpace);
         }
 
         /// <summary>
@@ -121,10 +143,21 @@ namespace FileDownloader
         public void SaveFile()
         {
             string fileName = Url.Split('/').Last();
-            if (string.IsNullOrWhiteSpace(fileName)) 
+            /*
+            if (string.IsNullOrWhiteSpace(fileName))
             {
                 fileName = "new_file" + nameCounter.ToString();
                 nameCounter++;
+            }
+            */
+            for (int i = 0; i < prohibitedCharacters.Length; i++)
+            {
+                if (fileName.Contains(prohibitedCharacters[i]) || string.IsNullOrWhiteSpace(fileName))
+                {
+                    fileName = "new_file" + nameCounter.ToString();
+                    nameCounter++;
+                    break;
+                }
             }
 
             if (string.IsNullOrWhiteSpace(path))
@@ -133,15 +166,13 @@ namespace FileDownloader
             }
             else
             {
-                if (path.ToArray()[path.ToArray().Length-1] == '/') path = path + fileName;
-                else path = path + "/" + fileName;
-                
+                if (path.ToArray()[path.ToArray().Length-1] == '/' || path.ToArray()[path.ToArray().Length - 1] == '\\') path = path + fileName;
+                else path = path + "\\" + fileName;
             }
             
             File.WriteAllBytes(path, data);
             Console.WriteLine($"Saved to {path}");
         }
-
     }
 
 }

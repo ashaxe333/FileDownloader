@@ -4,6 +4,11 @@ namespace FileDownloader
 {
     internal class Program
     {
+        // NÁPADY:
+        // 1) Uživatel si může název souboru zadat sám
+        // 2) Program bude moct přijímat řetezec více odkazů naráz (oddělené třeba čárkou), a bude moct stahovat více věcí z jednoho příkazu
+        // 3) Trochu přeorganizovat, a líp vychytávat podmínku neexistujícího linku
+
         static void Main(string[] args)
         {
             bool repeat = true;
