@@ -43,7 +43,7 @@ namespace FileDownloader
             try
             {
                 //vtvoří http požadavek s metodou HEAD
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Url);       //!!!Zjistit existenci už v MyConsole!!!
                 request.Method = "HEAD";
 
                 //získá response
