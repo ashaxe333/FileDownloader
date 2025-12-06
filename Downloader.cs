@@ -12,31 +12,30 @@ namespace FileDownloader
         private string? url;
         private string? path;
 
-        private long workerSpace = 10_000_000;
+        private long workerSpace;
+        private int coreCount;
         private List<Thread> threads = new List<Thread>();
 
         private volatile byte[] data;
-        private int nameCounter;
-        private char[] prohibitedCharacters = new char[9];
+        private NameValidation nameValidation = new NameValidation();
 
         public string Url { get => url; set => url = value; }
         public string? Path { get => path; set => path = value; }
 
         public Downloader(string url, string path)
         {
+            try
+            {
+                coreCount = Environment.ProcessorCount;
+            }
+            catch (Exception ex) 
+            {
+                Console.WriteLine("Couldn't get actuall core count -> coreCount = 4", ex);
+                coreCount = 4;
+            }
+            Console.WriteLine("Corecount: " + coreCount);
             Url = url;
             Path = path;
-            nameCounter = 1;
-
-            prohibitedCharacters[0] = '<';
-            prohibitedCharacters[1] = '>';
-            prohibitedCharacters[2] = ':';
-            prohibitedCharacters[3] = '\"';
-            prohibitedCharacters[4] = '/';
-            prohibitedCharacters[5] = '\\';
-            prohibitedCharacters[6] = '|';
-            prohibitedCharacters[7] = '?';
-            prohibitedCharacters[8] = '*';
 
             MakeWorkers();
         }
@@ -58,6 +57,7 @@ namespace FileDownloader
                 //získá response
                 using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                 {
+                    Console.WriteLine(Url);
                     //zkusí získat velikost, a pokud ji dostane, uloží ji a vrátí
                     if (long.TryParse(response.Headers.Get("Content-Length"), out size)) return size;
                     else throw new Exception("file couldn't be found");
@@ -80,10 +80,11 @@ namespace FileDownloader
         public void MakeWorkers()
         {
             long size = GetFileSize();
-            int workerCount = (int)Math.Ceiling((double)size/workerSpace);
+            workerSpace = size/coreCount;   //!!!nepřesný výpočet. Na konci může být zbytek, který se nikdy nestáhne!!!
+            //int workerCount = (int)Math.Ceiling((double)size/workerSpace);
             data = new byte[size];
 
-            for (int i = 0; i < workerCount; i++)
+            for (int i = 0; i < coreCount; i++)
             {
                 long start = i * workerSpace;
                 long end = Math.Min(start + workerSpace, size); //Vybere menší hodnotu z těch dvou (Ochrana posledního vlákna. Na konci to nikdy nebude přesně)
@@ -101,9 +102,9 @@ namespace FileDownloader
             }
 
             SaveFile();
-            //Console.WriteLine(size);
-            //Console.WriteLine($"{workerCount} - {threads.Count}");
-            //Console.WriteLine(workerSpace);
+            //Console.WriteLine($"size: {size}");
+            //Console.WriteLine($"workerCount: {threads.Count}");
+            //Console.WriteLine($"workerSpace: {workerSpace}");
         }
 
         /// <summary>
@@ -143,23 +144,13 @@ namespace FileDownloader
         public void SaveFile()
         {
             string fileName = Url.Split('/').Last();
-            /*
-            if (string.IsNullOrWhiteSpace(fileName))
-            {
-                fileName = "new_file" + nameCounter.ToString();
-                nameCounter++;
-            }
-            */
-            for (int i = 0; i < prohibitedCharacters.Length; i++)
-            {
-                if (fileName.Contains(prohibitedCharacters[i]) || string.IsNullOrWhiteSpace(fileName))
-                {
-                    fileName = "new_file" + nameCounter.ToString();
-                    nameCounter++;
-                    break;
-                }
-            }
 
+            if (nameValidation.ContainsProhibitedCharacters(fileName) || string.IsNullOrWhiteSpace(fileName))
+            {
+                fileName = "new_file" + Program.nameCounter.ToString();
+                Program.nameCounter++;
+            }
+            
             if (string.IsNullOrWhiteSpace(path))
             {
                 path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", fileName); 
@@ -174,5 +165,4 @@ namespace FileDownloader
             Console.WriteLine($"Saved to {path}");
         }
     }
-
 }
