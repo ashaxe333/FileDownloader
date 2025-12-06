@@ -11,9 +11,9 @@ namespace FileDownloader
     {
         private string? url;
         private string? path;
+        private string? name;
 
         private long workerSpace;
-        private int coreCount;
         private List<Thread> threads = new List<Thread>();
 
         private volatile byte[] data;
@@ -21,21 +21,13 @@ namespace FileDownloader
 
         public string Url { get => url; set => url = value; }
         public string? Path { get => path; set => path = value; }
+        public string? Name { get => name; set => name = value; }
 
-        public Downloader(string url, string path)
+        public Downloader(string url, string path, string name)
         {
-            try
-            {
-                coreCount = Environment.ProcessorCount;
-            }
-            catch (Exception ex) 
-            {
-                Console.WriteLine("Couldn't get actuall core count -> coreCount = 4", ex);
-                coreCount = 4;
-            }
-            Console.WriteLine("Corecount: " + coreCount);
-            Url = url;
-            Path = path;
+            this.Url = url;
+            this.Path = path;
+            this.Name = name;
 
             MakeWorkers();
         }
@@ -80,11 +72,11 @@ namespace FileDownloader
         public void MakeWorkers()
         {
             long size = GetFileSize();
-            workerSpace = size/coreCount;   //!!!nepřesný výpočet. Na konci může být zbytek, který se nikdy nestáhne!!!
+            workerSpace = size/Program.coreCount;   //!!!nepřesný výpočet. Na konci může být zbytek, který se nikdy nestáhne!!!
             //int workerCount = (int)Math.Ceiling((double)size/workerSpace);
             data = new byte[size];
 
-            for (int i = 0; i < coreCount; i++)
+            for (int i = 0; i < Program.coreCount; i++)
             {
                 long start = i * workerSpace;
                 long end = Math.Min(start + workerSpace, size); //Vybere menší hodnotu z těch dvou (Ochrana posledního vlákna. Na konci to nikdy nebude přesně)
@@ -130,7 +122,7 @@ namespace FileDownloader
 
                     while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
                     {
-                        //pole, které kopíruju/odkud začínám v tom poli/místo kam kopíruju/odkud místě kam kopíruju začínám kopírovat dál/kolik toho zkopíruju
+                        //pole, které kopíruju/odkud začínám v tom poli/místo kam kopíruju/odkud v místě kam kopíruju začínám kopírovat dál/kolik toho zkopíruju
                         Array.Copy(buffer, 0, data, offset, bytesRead);
                         offset += bytesRead;
                     }
@@ -160,7 +152,21 @@ namespace FileDownloader
                 if (path.ToArray()[path.ToArray().Length-1] == '/' || path.ToArray()[path.ToArray().Length - 1] == '\\') path = path + fileName;
                 else path = path + "\\" + fileName;
             }
-            
+
+            /*
+            string fullPath = Path.Combine(path, name);
+
+            if (File.Exists(fullPath))
+            {
+                Console.WriteLine("Soubor s tímto názvem už existuje!");
+                return;
+            }
+            else
+            {
+                Console.WriteLine("Soubor je volný, můžeš pokračovat se stahováním.");
+            }
+            */
+
             File.WriteAllBytes(path, data);
             Console.WriteLine($"Saved to {path}");
         }

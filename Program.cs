@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 
 namespace FileDownloader
@@ -8,11 +9,30 @@ namespace FileDownloader
         // NÁPADY:
         // 1) Uživatel si může název souboru zadat sám + !může si říct, jaký formát to bude mít!
         // 2) Program bude moct přijímat řetezec více odkazů naráz (oddělené třeba čárkou), a bude moct stahovat více věcí z jednoho příkazu
-        // 3) Trochu přeorganizovat, a líp vychytávat podmínku neexistujícího linku
+        // 3) Přendad dialogovou část do jiné třídy, kterou zde jen vytvořím, a už pojede
+        // 4) Shrnutí co kam bude uloženo
+        // 5) Líp vychytávat podmínku neexistujícího linku
 
         public static int nameCounter = 1;
+        public static int coreCount;
 
         static void Main(string[] args)
+        {
+            try
+            {
+                coreCount = Environment.ProcessorCount;
+                Console.WriteLine("Corecount: " + coreCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Couldn't get actuall core count -> coreCount = 4", ex);
+                coreCount = 4;
+            }
+
+            MyConsole();
+        }
+
+        public static void MyConsole()
         {
             bool repeat = true;
             Downloader d;
@@ -21,14 +41,15 @@ namespace FileDownloader
             {
                 Console.WriteLine("1 - download\n2 - exit");
                 string mode1 = Console.ReadLine().Trim();
-                switch (mode1) {
+                switch (mode1)
+                {
 
                     case "1":
-                        Console.WriteLine("Enter url adress of file to download: ");
-                        string url = Console.ReadLine().Trim();
-                        string path = GetPath();
-                        //string name = NameFile();
-                        d = new Downloader(url, path);
+                        string url = GetUrl();
+                        string? path = GetFolderPath();
+                        //string? name = GetFileName();
+                        string? name = "";
+                        d = new Downloader(url, path, name);
                         break;
 
                     case "2":
@@ -39,15 +60,34 @@ namespace FileDownloader
                         Console.WriteLine("Invalid command");
                         break;
                 }
-                
             }
+        }
+        public static string GetUrl()
+        {
+            bool repeat = true;
+            string? url = "";
+
+            while (repeat)
+            {
+                Console.WriteLine("Enter url adress of file to download: ");
+                url = Console.ReadLine().Trim();
+
+                if (string.IsNullOrEmpty(url))
+                {
+                    repeat = false;
+                    Console.WriteLine("url cannot be empty string");
+                }
+                else break;
+            }
+
+            return url;
         }
 
         /// <summary>
         /// Recieve path in which user wants file to be saved.
         /// </summary>
         /// <returns> path to folder </returns>
-        public static string GetPath()
+        public static string GetFolderPath()
         {
             bool repeat2 = true;
             string? path = "";
@@ -61,6 +101,13 @@ namespace FileDownloader
                     case "y":
                         Console.WriteLine("Enter folder path: ");
                         path = Console.ReadLine().Trim();
+                        
+                        if (string.IsNullOrEmpty(path))
+                        {
+                            Console.WriteLine("path cannot be empty string");
+                            continue;
+                        }
+                        
                         if (!Directory.Exists(path))
                         {
                             if (!CreateFolder(path)) 
@@ -102,7 +149,7 @@ namespace FileDownloader
                 switch (mode3)
                 {
                     case "y":
-                        Directory.CreateDirectory(path);
+                        Directory.CreateDirectory(path);    //File.Create(path);
                         repeat3 = false;
                         created = true;
                         break;
@@ -117,25 +164,29 @@ namespace FileDownloader
             }
             return created;
         }
+        
         /*
-        public static string NameFile()
+        public static string GetFileName()
         {
             bool repeat4 = true;
             string? name = "";
+            string? type = "";
 
             while (repeat4)
             {
                 Console.WriteLine("Name file? [y/n]");
-                string mode4 = Console.ReadLine();
+                string mode4 = Console.ReadLine().Trim();
                 switch (mode4)
                 {
                     case "y":
                         //zatím budu uživateli věřit, že to pojmenuje zprávně
+                        Console.WriteLine("File name: ");
                         name = Console.ReadLine();
+                        type = GetFileType();
                         break;
 
                     case "n":
-
+                        Console.WriteLine("File will be named as New_File<number>");
                         break;
 
                     default:
@@ -143,7 +194,36 @@ namespace FileDownloader
                         break;
                 }
             }
-            return name;
+            return name+type;
+        }
+
+        public static string GetFileType()
+        {
+            bool repeat4 = true;
+            string? type = "";
+
+            while (repeat4)
+            {
+                Console.WriteLine("Choose type (.png, .bin, .pdf, etc...)? [y/n]");
+                string mode4 = Console.ReadLine().Trim();
+                switch (mode4)
+                {
+                    case "y":
+                        //zatím budu uživateli věřit, že zadá zprávně existující typ
+                        Console.WriteLine("Type (in .<type> format): ");
+                        type = Console.ReadLine();
+                        break;
+
+                    case "n":
+                        Console.WriteLine("File type will be same as in url");
+                        break;
+
+                    default:
+                        Console.WriteLine("Invalid command");
+                        break;
+                }
+            }
+            return type;
         }
         */
         /*
